@@ -8,8 +8,9 @@
     public string Cedula { get; set; }
     public double Precio { get; set; }
     public int Unidades { get; set; }
+    public DateTime Fecha { get; set; } 
 
-    public Cascos(int idCasco, string talla, string marca, string comprador, string apellido, string cedula, double precio, int unidades)
+    public Cascos(int idCasco, string talla, string marca, string comprador, string apellido, string cedula, double precio, int unidades, DateTime fecha)
     {
         IdCasco = idCasco;
         Talla = talla;
@@ -19,10 +20,11 @@
         Cedula = cedula;
         Precio = precio;
         Unidades = unidades;
+        Fecha = fecha; 
     }
 
     public override string ToString()
     {
-        return $"ID: {IdCasco}, Talla: {Talla}, Marca: {Marca}, Comprador: {Comprador} {Apellido}, Cédula: {Cedula}, Precio: {Precio}, Unidades: {Unidades}";
+        return $"ID: {IdCasco}, Talla: {Talla}, Marca: {Marca}, Comprador: {Comprador} {Apellido}, Cédula: {Cedula}, Precio: {Precio}, Unidades: {Unidades}, Fecha: {Fecha}";
     }
 }

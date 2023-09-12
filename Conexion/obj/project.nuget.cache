@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "T9ay/ZO28VLRIjkueeZID5k1Cjd2JfGnNW53UI7t311wHdkzU4JEl5yhjB7CkWA1wNBC+Y7y816TxHwB4u+BYQ==",
+  "dgSpecHash": "WSHxYJygV897w1DqJV/lrgWueN1JD8rqOavm/Pyx23qTmfElT4FvsgKiS/+EparkDJPDrtGwkNDF7+dY3Sbixg==",
   "success": true,
-  "projectFilePath": "C:\\Users\\USUARIO\\Desktop\\estudio\\Conexion\\Conexion\\Conexion.csproj",
+  "projectFilePath": "C:\\Users\\USUARIO\\Desktop\\TiendaCascos\\TiendaCascos\\Conexion\\Conexion.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\USUARIO\\.nuget\\packages\\google.protobuf\\3.21.9\\google.protobuf.3.21.9.nupkg.sha512",
     "C:\\Users\\USUARIO\\.nuget\\packages\\k4os.compression.lz4\\1.3.5\\k4os.compression.lz4.1.3.5.nupkg.sha512",

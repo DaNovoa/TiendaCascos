@@ -1,8 +1,8 @@
 ﻿using System;
 using MySql.Data.MySqlClient;
 using System.Collections.Generic;
-using MySqlX.XDevAPI.Relational;
 using System.Text.RegularExpressions;
+using System.Globalization;
 
 class Program
 {
@@ -46,7 +46,7 @@ class Program
                         CalcularTotalVentas(connection);
                         break;
                     case 5:
-                        IngresarNuevoCasco(connection, out DateTime nuevaFecha);
+                        IngresarNuevoCasco(connection);
                         break;
                     case 6:
                         Console.WriteLine("Saliendo del programa.");
@@ -68,6 +68,23 @@ class Program
             connection.Close();
         }
     }
+
+    static bool ValidarCadena(string cadena)
+    {
+        // Expresión regular para validar letras y espacios
+        string patron = "^[A-Za-z\\s]+$";
+
+        return Regex.IsMatch(cadena, patron);
+    }
+
+    static bool ValidarCedula(string cedula)
+    {
+        // Expresión regular para validar cedula
+        string cedulaPattern = @"^\d+$";
+
+        return Regex.IsMatch(cedula, cedulaPattern);
+    }
+
 
     static void ActualizarCascoPorCedula(string cedulaCliente, MySqlConnection connection)
     {
@@ -119,7 +136,6 @@ class Program
             for (int i = 0; i < tallas.Count; i++)
             {
                 Console.WriteLine($"{ids[i]}. Talla: {tallas[i]}, Marca: {marcas[i]}, Comprador: {compradores[i]} {apellidos[i]}, Cédula: {cedulas[i]}, Precio: {precios[i]}, Unidades: {unidades[i]}");
-
             }
 
             Console.Write("Seleccione un casco para actualizar (ingrese el número de ID): ");
@@ -130,8 +146,6 @@ class Program
             if (index >= 0 && index < tallas.Count)
             {
                 int idSeleccionado = ids[index];
-                string tallaSeleccionada = tallas[index];
-                string marcaSeleccionada = marcas[index];
 
                 Console.Write("Nuevo Marca: ");
                 string nuevaMarca = Console.ReadLine();
@@ -154,12 +168,12 @@ class Program
                 }
                 else
                 {
-                    Console.WriteLine("No se encontró un casco con la cédula proporcionado.");
+                    Console.WriteLine("No se encontró un casco con la cédula proporcionada.");
                 }
             }
             else
             {
-                Console.WriteLine("id no válida.");
+                Console.WriteLine("ID no válida.");
             }
         }
     }
@@ -242,33 +256,71 @@ class Program
             }
             else
             {
-                Console.WriteLine("id no válida.");
+                Console.WriteLine("ID no válida.");
             }
         }
     }
 
     static void CalcularTotalVentas(MySqlConnection connection)
     {
-        string selectQuery = "SELECT precio, unidades FROM cascos";
+        string selectQuery = "SELECT comprador, apellido, marca, cedula, unidades, precio FROM cascos";
         MySqlCommand command = new MySqlCommand(selectQuery, connection);
+
+        Dictionary<string, (string cliente, string marca, int unidades, double ventas)> ventasPorCliente = new Dictionary<string, (string, string, int, double)>();
 
         using (MySqlDataReader reader = command.ExecuteReader())
         {
-            double totalVentas = 0;
             while (reader.Read())
             {
-                double precio = reader.GetDouble("precio");
+                string comprador = reader.GetString("comprador");
+                string apellido = reader.GetString("apellido");
+                string marca = reader.GetString("marca");
+                string cedula = reader.GetString("cedula");
                 int unidades = reader.GetInt32("unidades");
-                totalVentas += precio * unidades;
-            }
+                double precio = reader.GetDouble("precio");
 
-            Console.WriteLine("El total de ventas es: " + totalVentas);
+                double ventaMarca = unidades * precio;
+
+                string clienteKey = $"{comprador} {apellido} ({cedula})";
+
+                if (ventasPorCliente.ContainsKey(clienteKey))
+                {
+                    var data = ventasPorCliente[clienteKey];
+                    data.unidades += unidades;
+                    data.ventas += ventaMarca;
+                    ventasPorCliente[clienteKey] = data;
+                }
+                else
+                {
+                    ventasPorCliente[clienteKey] = (comprador, marca, unidades, ventaMarca);    
+                }
+            }
         }
+
+        Console.WriteLine("+-------------------------+------------------+------------------+-----------------+------------------+");
+        Console.WriteLine("|         Cliente         |      Cédula      |      Marca       |    Unidades    |   Total Ventas   |");
+        Console.WriteLine("+-------------------------+------------------+------------------+-----------------+------------------+");
+
+        foreach (var kvp in ventasPorCliente.OrderBy(x => x.Key))
+        {
+            string[] clienteInfo = kvp.Key.Split(new char[] { '(', ')' }, StringSplitOptions.RemoveEmptyEntries);
+            string cliente = clienteInfo[0].Trim();
+            string cedula = clienteInfo[1].Trim();
+            string marca = kvp.Value.marca;
+
+            Console.WriteLine($"| {cliente,-24} | {cedula,-16} | {marca,-16} | {kvp.Value.unidades,-14} | ${kvp.Value.ventas,-15:F2} |");
+        }
+
+        Console.WriteLine("+-------------------------+------------------+------------------+-----------------+------------------+");
+
+        double totalVentas = ventasPorCliente.Values.Sum(data => data.ventas);
+        Console.WriteLine($"\nTotal de ventas: ${totalVentas:F2}");
     }
+
 
     static void ListarCascos(MySqlConnection connection)
     {
-        string selectQuery = "SELECT idcasco, talla, marca, comprador, apellido, cedula, precio, unidades FROM cascos ORDER BY marca";
+        string selectQuery = "SELECT idcasco, talla, marca, comprador, apellido, cedula, precio, unidades, fecha FROM cascos ORDER BY marca";
         MySqlCommand command = new MySqlCommand(selectQuery, connection);
 
         using (MySqlDataReader reader = command.ExecuteReader())
@@ -284,12 +336,24 @@ class Program
                 string cedula = reader.GetString("cedula");
                 double precio = reader.GetDouble("precio");
                 int unidad = reader.GetInt32("unidades");
-                Console.WriteLine($"ID: {idcasco}, Talla: {talla}, Marca: {marca}, Comprador: {comprador} {apellido}, Cédula: {cedula}, Precio: {precio}, Unidades: {unidad}");
+
+                // Inicializar fecha
+                DateTime fecha = DateTime.MinValue;
+
+                // Verificar si la columna "fecha" no es nula
+                if (!reader.IsDBNull(reader.GetOrdinal("fecha")))
+                {
+                    fecha = reader.GetDateTime("fecha"); // Obtener la fecha
+                }
+
+                Console.WriteLine($"ID: {idcasco}, Talla: {talla}, Marca: {marca}, Comprador: {comprador} {apellido}, Cédula: {cedula}, Precio: {precio}, Unidades: {unidad}, Fecha: {fecha}");
             }
         }
     }
 
-    static void IngresarNuevoCasco(MySqlConnection connection, out DateTime nuevaFecha)
+
+
+    static void IngresarNuevoCasco(MySqlConnection connection)
     {
         Console.WriteLine("Ingresar nuevo casco:");
         Console.Write("Digite el nombre del comprador: ");
@@ -298,45 +362,49 @@ class Program
         string nuevoApellido = Console.ReadLine();
         Console.Write("Digite la cédula del comprador: ");
         string nuevaCedula = Console.ReadLine();
+
+        // Expresión regular para validar cédulas de solo números
+        string cedulaPattern = @"^\d+$";
+
+        if (!Regex.IsMatch(nuevaCedula, cedulaPattern))
+        {
+            Console.WriteLine("La cédula ingresada no es válida. Debe contener solo números.");
+            return;
+        }
+
         Console.Write("Digite la cantidad de unidades: ");
-        int nuevasUnidades = Int32.Parse(Console.ReadLine());
+        if (!int.TryParse(Console.ReadLine(), out int nuevasUnidades))
+        {
+            Console.WriteLine("La cantidad de unidades ingresada no es válida. Debe ser un número entero.");
+            return;
+        }
+
         Console.Write("Digite la talla del casco: ");
         string nuevaTalla = Console.ReadLine();
         Console.Write("Digite la marca del casco: ");
         string nuevaMarca = Console.ReadLine();
         Console.Write("Digite el precio del casco: ");
-        double nuevoPrecio = Double.Parse(Console.ReadLine());
-
-        string fechaStr;
-
-        nuevaFecha = DateTime.MinValue; // Inicializar nuevaFecha
-
-        bool formatoFechaCorrecto = false;
-
-        while (!formatoFechaCorrecto)
+        if (!double.TryParse(Console.ReadLine(), out double nuevoPrecio))
         {
-            Console.Write("Ingrese la fecha del casco (formato yyyy-MM-dd): ");
-            fechaStr = Console.ReadLine();
-            Console.WriteLine("Valor ingresado: " + fechaStr);
-
-            if (DateTime.TryParseExact(fechaStr, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out nuevaFecha))
-            {
-                formatoFechaCorrecto = true;
-            }
-            else
-            {
-                Console.WriteLine("Formato de fecha incorrecto. El formato debe ser 'yyyy-MM-dd'.");
-            }
-
+            Console.WriteLine("El precio ingresado no es válido. Debe ser un número decimal.");
+            return;
         }
 
+        Console.Write("Digite la fecha (dd-MM-yyyy): ");
+        if (!DateTime.TryParseExact(Console.ReadLine(), "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime nuevaFecha))
+        {
+            Console.WriteLine("La fecha ingresada no es válida. Debe seguir el formato dd-MM-yyyy.");
+            return;
+        }
 
         InsertarCasco(nuevaTalla, nuevaMarca, nuevoPrecio, nuevoComprador, nuevoApellido, nuevaCedula, nuevasUnidades, nuevaFecha, connection);
     }
 
+
     static void InsertarCasco(string talla, string marca, double precio, string comprador, string apellido, string cedula, int unidades, DateTime fecha, MySqlConnection connection)
     {
-        string fechaFormateada = fecha.ToString("yyyy-MM-dd HH:mm:ss");
+        string fechaFormateada = fecha.ToString("yyyy-MM-dd"); // Formatea la fecha como "yyyy-MM-dd"
+
         string insertQuery = $"INSERT INTO cascos (talla, marca, precio, comprador, apellido, cedula, unidades, fecha) VALUES ('{talla}', '{marca}', {precio}, '{comprador}', '{apellido}', '{cedula}', {unidades}, '{fechaFormateada}')";
 
         MySqlCommand insertCommand = new MySqlCommand(insertQuery, connection);
@@ -352,4 +420,5 @@ class Program
             Console.WriteLine("Error al ingresar el casco.");
         }
     }
+
 }

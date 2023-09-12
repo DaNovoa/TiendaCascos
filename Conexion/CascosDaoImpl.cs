@@ -1,6 +1,7 @@
 ﻿using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 public class CascosDaoImpl : ICascosDao
 {
@@ -13,6 +14,15 @@ public class CascosDaoImpl : ICascosDao
 
     public void ActualizarCascoPorCedula(string cedulaCliente)
     {
+        // Expresión regular para validar cédulas de 10 dígitos
+        string cedulaPattern = @"^\d+$";
+
+        if (!Regex.IsMatch(cedulaCliente, cedulaPattern))
+        {
+            Console.WriteLine("La cédula ingresada no tiene el formato correcto (10 dígitos).");
+            return;
+        }
+
         string selectQuery = $"SELECT idcasco, talla, marca, comprador, apellido, cedula, precio, unidades FROM cascos WHERE cedula = '{cedulaCliente}'";
         MySqlCommand selectCommand = new MySqlCommand(selectQuery, connection);
 
